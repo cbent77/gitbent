@@ -1,0 +1,31 @@
+Definitive ( until proved otherwise ) way to access dashboard. 
+
+1: copy admin.conf from controller node
+    # scp root@<master ip>:/etc/kubernetes/admin.conf .
+2: install kubectl on the workstation you want to use to access the k8s cluster:
+
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+sudo yum install -y kubectl
+
+
+3: should now be able to use the following commands on your workstation:
+
+ #  proof of connection?
+    kubectl --kubeconfig ./admin.conf get nodes
+
+    
+# Start the dashboard ( will need to start a new terminal tab/window)
+kubectl --kubeconfig ./k8sadmin.conf proxy
+
+#dashboard url if everything worked
+http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+
+
+    
