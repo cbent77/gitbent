@@ -66,7 +66,7 @@ storage:
           name=Kubernetes
           baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
           enabled=1
-          gpgcheck=1
+          gpgcheck=0
           gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
     # configuring automatic loading of br_netfilter on startup
     - path: /etc/modules-load.d/br_netfilter.conf
