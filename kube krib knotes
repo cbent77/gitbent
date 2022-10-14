@@ -1,0 +1,122 @@
+KUBE-VIP-------------
+
+export VIP=<VIP>
+export INTERFACE=<virtual NIC>
+KVVERSION=$(curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name")
+alias kube-vip="ctr image pull ghcr.io/kube-vip/kube-vip:$KVVERSION; ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:$KVVERSION vip /kube-vip"
+
+# assign VIP temporarly to INTERFACE
+ip add add $VIP/24 dev $INTERFACE
+
+# initialize control plane
+kubeadmin init --control-plane-endpoint "<API URL>:6443" --upload-certs --pod-network-cidr=172.24.0.0/13
+
+# apply cluster config
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# apply kube-vip rbac
+kubectl apply -f https://kube-vip.io/manifests/rbac.yaml
+
+# create kube-vip manifest
+kube-vip manifest daemonset \
+    --interface $INTERFACE \
+    --address $VIP \
+    --inCluster \
+    --taint \
+    --controlplane \
+    --arp \
+    --leaderElection > kube-vip.yaml
+    
+CILIUM---------------
+    
+    # add cilium helm repo
+helm repo add cilium https://helm.cilium.io/
+
+# install cilium with helm
+helm install cilium cilium/cilium --version 1.11.1 \
+  --namespace kube-system \
+  --set huble.enabled=true \
+  --set hubble.relay.enabled=true \
+  --set hubble.ui.enabled=true 
+
+# install cilium cli
+CILIUM_CLI_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/cilium-cli/master/stable.txt)
+CLI_ARCH=amd64
+if [ "$(uname -m)" = "aarch64" ]; then CLI_ARCH=arm64; fi
+curl -L --fail --remote-name-all https://github.com/cilium/cilium-cli/releases/download/${CILIUM_CLI_VERSION}/cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+sha256sum --check cilium-linux-${CLI_ARCH}.tar.gz.sha256sum
+sudo tar xzvfC cilium-linux-${CLI_ARCH}.tar.gz /usr/local/bin
+rm cilium-linux-${CLI_ARCH}.tar.gz{,.sha256sum}
+
+
+METAL LB-------------
+
+# apply namespace manifest
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/namespace.yaml
+
+# generate memberlist-secret (It is not always generated)
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+
+# apply metallb manifest
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.12.1/manifests/metallb.yaml
+
+# create and apply configmap
+cat <<EOF | tee metallb-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.1.240-192.168.1.250
+EOF
+
+kubectl apply -f metallb-configmap.yaml
+
+# Modify firewall
+sudo firewall-cmd --permanent --new-service=metallb
+sudo firewall-cmd --permanent --service=metallb --set-description=metallb
+sudo firewall-cmd --permanent --service=metallb --add-port=7946/tcp
+sudo firewall-cmd --permanent --zone=public --add-service=metallb
+sudo firewall-cmd --reload
+
+HELM-------------------
+
+# ensure '/usr/local/bin' is part of PATH
+export PATH=$PATH:/usr/local/bin
+
+# add '/usr/local/bin' to PATH in .bashrc
+echo 'export PATH=$PATH:/usr/local/bin' >> ~/.bashrc
+
+# download helm install script
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+
+# change permissions on install script
+chmod 700 get_helm.sh
+
+# execute the helm install script
+./get_helm.sh
+
+# remove helm install script
+rm -f get_helm.sh
+
+# set up bash autocompletion
+source <(helm completion bash)
+
+helm completion bash > /etc/bash_completion.d/helm
+
+NOTES-----------
+
+https://unofficial-kubernetes.readthedocs.io/en/latest/getting-started-guides/kubeadm/
+
+
+
+
+
