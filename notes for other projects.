@@ -1,0 +1,95 @@
+coreos notes
+
+create ign file  (bootstrapper) by installing butane and then running:
+
+Add ssh (keygen) and password-hash (mkpasswd)
+
+#snippets from 
+https://dev.to/carminezacc/creating-a-kubernetes-cluster-with-fedora-coreos-36-j17
+https://docs.fedoraproject.org/en-US/fedora-coreos/authentication/#_enabling_ssh_password_authentication
+
+
+#make sure you have butane installed to run this part
+
+butane --pretty --strict "filename.bu" > filename.ign>
+
+
+#make ign file accessable via webserver / curl http://<url>/<file>.ign -o fcos.ign ( or other name in config ) 
+#you may want to install something like a quick ngnix to make things go faster.  
+
+sudo coreos-installer install /dev/sda -i fcos.ign
+
+sudo rpm-ostree install kubelet kubeadm kubectl cri-o
+
+
+------other -----
+
+
+#incase of needing to repair the k8s repos
+
+https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+
+
+---- bootscrap for fcos template------------
+
+
+variant: fcos
+version: 1.4.0
+storage:
+  files:
+    - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+      mode: 0644
+      contents:
+        inline: |
+          # Fedora CoreOS disables SSH password login by default.
+          # Enable it.
+          # This file must sort before 40-disable-passwords.conf.
+          PasswordAuthentication yes  
+    # CRI-O DNF module
+    - path: /etc/dnf/modules.d/cri-o.module
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          [cri-o]
+          name=cri-o
+          stream=1.17
+          profiles=
+          state=enabled
+    # YUM repository for kubeadm, kubelet and kubectl
+    - path: /etc/yum.repos.d/kubernetes.repo
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          [kubernetes]
+          name=Kubernetes
+          baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+    # configuring automatic loading of br_netfilter on startup
+    - path: /etc/modules-load.d/br_netfilter.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: br_netfilter
+    # setting kernel parameters required by kubelet
+    - path: /etc/sysctl.d/kubernetes.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          net.bridge.bridge-nf-call-iptables=1
+          net.ipv4.ip_forward=1
+passwd: # setting login credentials
+  users:
+    - name: core
+      groups:
+        - docker
+        - wheel
+        - sudo
+      password_hash:
+        - <HASH GOES HERE>
+      ssh_authorized_keys:
+        - <PASTE YOUR SSH PUBLIC KEY HERE>
