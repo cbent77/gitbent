@@ -1,0 +1,34 @@
+#For each of the following snippets for ServiceAccount and ClusterRoleBinding, you should copy them to new manifest files like dashboard-adminuser.yaml and 
+
+#Creating a Service Account
+We are creating Service Account with the name admin-user in namespace kubernetes-dashboard first.
+#---- dashboard-adminuser.yaml--------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kubernetes-dashboard
+#-----  
+  
+#Creating a ClusterRoleBinding
+#In most cases after provisioning the cluster using kops, kubeadm or any other popular tool.
+#the ClusterRole cluster-admin already exists in the cluster. 
+#We can use it and create only a ClusterRoleBinding for our ServiceAccount. 
+#If it does not exist then you need to create this role first and grant required privileges manually.
+
+#--------------- dashboard-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kubernetes-dashboard
+ #------------------
+kubectl --kubeconfig ./k8sadmin.conf apply -f dashboard-adminuser.yaml
+kubectl --kubeconfig ./k8sadmin.conf apply -f dashboard-role.yaml
