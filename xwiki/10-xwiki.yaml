@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xwiki
+  namespace: xwiki-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: xwiki-http
+  template:
+    metadata:
+      labels:
+        app: xwiki-http
+    spec:
+      containers:
+        - name: xwiki
+          image: xwiki:stable-mysql
