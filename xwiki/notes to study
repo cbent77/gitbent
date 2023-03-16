@@ -1,0 +1,10 @@
+  653  kubectl get services -A
+  654  kubectl exec -it -n gitea mysql
+  655  kubectl exec -it -n gitea 
+  656  kubectl exec -it -n gitea mysql
+  657  kubectl exec -it -n gitea-mysql
+  658  source <(kubectl completion bash)
+  659  kubectl completion bash > /etc/bash_completion.d/kubectl
+  660  kubectl exec -it -n gitea-mysql-6796d96b55-m6fsc
+  661  kubectl exec -it -n gitea-mysql-6796d96b55-m6fsc -- /usr/bin/bash
+  662  kubectl exec -it -n gitea gitea-mysql-6796d96b55-m6fsc -- /usr/bin/bash
